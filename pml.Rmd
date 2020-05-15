@@ -1,0 +1,168 @@
+---
+title: "Practical Machine Learning Cousre Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intoduction
+
+[Weight Lifting Exercise Dataset](http://groupware.les.inf.puc-rio.br/har) contains data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to use the dataset to predict the manner in which the exercise was performed, this is the `classe` variable in the training set. Two predictive models were built using the measurements of the data to predict `classe` of the exercise.
+
+## Loading Data 
+
+First downloading data, and loading it into train and test data
+
+```{r}
+trainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!file.exists("pml-training.csv")){
+    download.file(trainUrl, "pml-training.csv")
+}
+if(!file.exists("pml-testing.csv")){
+    download.file(testUrl, "pml-testing.csv")
+}
+```
+
+```{r}
+trainDF <- read.csv("pml-training.csv")
+testDF <- read.csv("pml-testing.csv")
+```
+
+## Exploratory Analysis
+
+Exploring `classe` feature, the feature to be predicted...
+
+```{r}
+table(trainDF$classe)
+```
+
+So the classe of the exercise contains 5 different fashions:
+
+- (Class A): exactly according to the specification 
+- (Class B): throwing the elbows to the front 
+- (Class C): lifting the dumbbell only halfway 
+- (Class D): lowering the dumbbell only halfway  
+- (Class E): throwing the hips to the front
+
+Looking at the dimensions of the data...
+
+```{r}
+dim(trainDF)
+dim(testDF)
+```
+
+the data contains 160 features, let's look at part of them...
+
+```{r}
+str(trainDF[1:30])
+```
+
+It seems that some features contains alot of NAs, therefore the columns that contains more than 90% NA values were removed, aslo the first 5 columns of the dataset are participants  information like `user_name`, so they were removed as well.
+
+```{r}
+naCols <- which(colSums(is.na(trainDF)|trainDF=="") > 0.9* dim(trainDF)[1])
+trainDF <- trainDF[,-c(naCols, 1:5)]
+dim(trainDF)
+```
+now the data contains only 55 features, make sure no more NAs...
+```{r}
+sum(is.na(trainDF))
+```
+removing same columns from the validation set...
+```{r}
+testDF <- testDF[,-c(naCols, 1:5)]
+dim(testDF)
+```
+
+## Model Selection
+
+In this section two predictive models were built, Random Forest and Generalized Boosted Regression Models. Since the two models to be built perform feature selection, there's no need to select subset of features previously. Before building the models, train dataset was splitted into 70% training and 30% testing.
+
+```{r warning=FALSE}
+library(caret)
+set.seed(1235)
+inTrain <- createDataPartition(y=trainDF$classe, p=.7, list = FALSE)
+training <- trainDF[inTrain,]
+testing <- trainDF[-inTrain,]
+dim(training); dim(testing)
+```
+
+### Random Forest
+
+Building random forest model using 6-Fold cross validation...
+
+```{r cache=TRUE}
+control <- trainControl(method="cv", number=6)
+rfFit <- train(classe~., method="rf", data=training, trControl=control)
+rfFit
+```
+
+The most accurate value for the number of variables available for splitting at each tree node `mtry` was 28 with accuracy 99.7%, after that model accuracy started degrading.
+
+```{r}
+plot(rfFit)
+```
+
+testing the model...
+
+```{r}
+rfPreds <- predict(rfFit, testing)
+rfConf <- confusionMatrix(rfPreds, testing$classe)
+rfConf$overall[1]
+```
+
+```{r}
+rfConf$table
+```
+
+### Generalized Boosted Models (gbm) 
+
+
+```{r cache=TRUE}
+gbmFit <- train(classe~., method="gbm", data = training, verbose=FALSE)
+gbmFit
+```
+
+The training accuracy of gbm is 98.4%, less than the accuracy of random forset.In addition, the time taken by gbm to train was much larger than time taken by random forest.
+
+```{r}
+plot(gbmFit)
+```
+
+testing the model...
+
+```{r}
+gbmpreds <- predict(gbmFit, testing)
+gbmConf <- confusionMatrix(gbmpreds, testing$classe)
+gbmConf$overall[1]
+```
+
+```{r}
+gbmConf$table
+```
+
+
+Since **Random Forest** model showed better performance than gbm with accuracy **99.7%** , random forest model was used for the final testing.
+
+```{r}
+results <- predict(rfFit, testDF)
+results
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
