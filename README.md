@@ -4,5 +4,6 @@ Weight Lifting Exercise Dataset contains data from accelerometers on the belt, f
 
 
 
-The HTML file can be viewed at 
+The HTML file can be viewed at   
+
 https://yomnafathy.github.io/Weight-Lifting-Exercises-Qualitative-Prediction//pml.html
